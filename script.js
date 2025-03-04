@@ -1,154 +1,114 @@
-// Track the state of filter buttons
-let filterButton1Active = false;
-let jsonData = []; // Global variable to hold fetched JSON data
+document.addEventListener("DOMContentLoaded", function () {
+    fetchData();
+});
 
-// Function to fetch data from JSON file
+let jsonData = [];
+let filterButton1Active = false;
+
 async function fetchData() {
     try {
-        const response = await fetch("data.json"); // Replace with your JSON file's path
-        if (!response.ok) throw new Error("Failed to fetch data.");
+        const response = await fetch("data.json"); // Ensure your JSON file is accessible
         jsonData = await response.json();
-        initialize(); // Populate the table and filters after fetching data
+        console.log("Fetched Data:", jsonData); // Debugging Log
+        populateFilters();
+        populateTable(jsonData);
     } catch (error) {
         console.error("Error fetching data:", error);
     }
 }
 
-// Function to populate the table
 function populateTable(data) {
     const tableBody = document.getElementById("table-body");
-    tableBody.innerHTML = ""; // Clear existing data
+    tableBody.innerHTML = "";
 
-    data.forEach(item => {
-        const row = document.createElement("tr");
-        Object.values(item).forEach(value => {
-            const cell = document.createElement("td");
-            cell.textContent = value;
-            row.appendChild(cell);
+    data.forEach(row => {
+        const tr = document.createElement("tr");
+        Object.values(row).forEach(value => {
+            const td = document.createElement("td");
+            td.textContent = value;
+            tr.appendChild(td);
         });
-        tableBody.appendChild(row);
+        tableBody.appendChild(tr);
     });
 }
 
-// Function to apply all filters and update the table
-function applyFilters() {
-    let filteredData = [...jsonData]; // Start with the original data
-
-    // Get dropdown filter values
-    const filterValues = {
-        "ME Name": document.getElementById("filter-me-name").value,
-        "Beat": document.getElementById("filter-beat").value,
-        "Shikhar": document.getElementById("filter-shikhar").value,
-        "Launch": document.getElementById("filter-launch").value,
-        "DBO": document.getElementById("filter-dbo").value,
-        "TLSD": document.getElementById("filter-tlsd").value
+function populateFilters() {
+    const filterKeys = {
+        "ME Name": "filter-me-name",
+        "Beat": "filter-beat",
+        "Simple": "filter-simple",
+        "GLUTA": "filter-gluta",
+        "Sun Range": "filter-sun-range",
+        "Elle18 Lqd Lip": "filter-elle18-lqd-lip",
+        "Lakme FMatte Foundation": "filter-lakme-fmatte-foundation",
+        "Elle18 Nail": "filter-elle18-nail",
+        "Liner Qdel": "filter-liner-qdel"
     };
 
-    // Apply dropdown filters
-    Object.keys(filterValues).forEach(key => {
-        if (filterValues[key]) {
-            filteredData = filteredData.filter(row => row[key] === filterValues[key]);
+    Object.entries(filterKeys).forEach(([key, id]) => {
+        const filterElement = document.getElementById(id);
+        if (filterElement) {
+            let uniqueValues = [...new Set(jsonData.map(item => item[key]).filter(Boolean))];
+            console.log(`Values for ${key}:`, uniqueValues); // Debugging Log
+            filterElement.innerHTML = `<option value="">${key}</option>` + 
+                uniqueValues.map(value => `<option value="${value}">${value}</option>`).join("");
+        } else {
+            console.error(`Element not found: ${id}`);
+        }
+    });
+}
+
+function applyFilters() {
+    let filteredData = [...jsonData];
+
+    const filterKeys = {
+        "ME Name": document.getElementById("filter-me-name").value,
+        "Beat": document.getElementById("filter-beat").value,
+        "Simple": document.getElementById("filter-simple").value,
+        "GLUTA": document.getElementById("filter-gluta").value,
+        "Sun Range": document.getElementById("filter-sun-range").value,
+        "Elle18 Lqd Lip": document.getElementById("filter-elle18-lqd-lip").value,
+        "Lakme FMatte Foundation": document.getElementById("filter-lakme-fmatte-foundation").value,
+        "Elle18 Nail": document.getElementById("filter-elle18-nail").value,
+        "Liner Qdel": document.getElementById("filter-liner-qdel").value
+    };
+
+    Object.keys(filterKeys).forEach(key => {
+        if (filterKeys[key]) {
+            filteredData = filteredData.filter(row => row[key] === filterKeys[key]);
         }
     });
 
-    // Search Bar Filter
     const searchQuery = document.getElementById("search-bar").value.toLowerCase();
     if (searchQuery) {
-        filteredData = filteredData.filter(row => {
-            const hulCode = row["HUL Code"] ? row["HUL Code"].toString().toLowerCase() : "";
-            const outletName = row["HUL Outlet Name"] ? row["HUL Outlet Name"].toString().toLowerCase() : "";
-            return hulCode.includes(searchQuery) || outletName.includes(searchQuery);
-        });
+        filteredData = filteredData.filter(row => 
+            row["HUL Code"].toLowerCase().includes(searchQuery) || 
+            row["HUL Outlet Name"].toLowerCase().includes(searchQuery)
+        );
     }
 
-    // Filter Button Logic
     if (filterButton1Active) {
         filteredData = filteredData.filter(row => Number(row["Coverage"]) < 500);
     }
 
-    // Update the table with the filtered data
+    console.log("Filtered Data:", filteredData); // Debugging Log
     populateTable(filteredData);
-    updateDropdowns(filteredData);
 }
 
-// Function to dynamically update dropdown options
-function updateDropdowns(filteredData) {
-    const uniqueValues = {
-        "ME Name": new Set(),
-        "Beat": new Set(),
-        "Shikhar": new Set(),
-        "Launch": new Set(),
-        "DBO": new Set(),
-        "TLSD": new Set()
-    };
-
-    // Collect unique options from filtered data
-    filteredData.forEach(row => {
-        Object.keys(uniqueValues).forEach(key => {
-            if (row[key]) uniqueValues[key].add(row[key]);
-        });
-    });
-
-    // Repopulate dropdowns with updated options
-    Object.keys(uniqueValues).forEach(key => {
-        populateSelectDropdown(`filter-${key.toLowerCase().replace(" ", "-")}`, uniqueValues[key], key);
-    });
-}
-
-// Function to populate dropdown filters
-function populateSelectDropdown(id, optionsSet, columnName) {
-    const dropdown = document.getElementById(id);
-    const selectedValue = dropdown.value; // Keep the current selection
-    dropdown.innerHTML = ""; // Clear existing options
-
-    // Add default option
-    const defaultOption = document.createElement("option");
-    defaultOption.textContent = columnName;
-    defaultOption.value = "";
-    defaultOption.selected = true;
-    dropdown.appendChild(defaultOption);
-
-    // Populate other options
-    optionsSet.forEach(option => {
-        const optionElement = document.createElement("option");
-        optionElement.textContent = option;
-        optionElement.value = option;
-        if (option === selectedValue) optionElement.selected = true; // Retain previous selection
-        dropdown.appendChild(optionElement);
-    });
-}
-
-// Reset button functionality
+// Event Listeners
 document.getElementById("reset-button").addEventListener("click", () => {
     filterButton1Active = false;
     document.getElementById("filter-button-1").style.backgroundColor = "blue";
-
-    // Reset search bar
     document.getElementById("search-bar").value = "";
-
-    // Reset dropdown filters
     document.querySelectorAll("select").forEach(select => select.value = "");
-
-    // Reapply filters to show the unfiltered data
     applyFilters();
 });
 
-// Event listeners for dropdowns and search bar
 document.getElementById("search-bar").addEventListener("input", applyFilters);
 document.querySelectorAll("select").forEach(select => select.addEventListener("change", applyFilters));
 
-// Filter button event listeners
 document.getElementById("filter-button-1").addEventListener("click", () => {
     filterButton1Active = !filterButton1Active;
     document.getElementById("filter-button-1").style.backgroundColor = filterButton1Active ? "green" : "blue";
     applyFilters();
 });
-
-// Initialize the table and filters
-function initialize() {
-    populateTable(jsonData);
-    applyFilters(); // Ensure filters are populated based on the data
-}
-
-// Fetch data and initialize the page
-fetchData();
